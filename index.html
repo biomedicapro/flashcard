@@ -1,233 +1,366 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flashcards Interactivas</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #1d1f27;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        .container {
-            width: 95%;
-            max-width: 800px;
-            text-align: center;
-            background-color: #282c34;
-            border-radius: 10px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-            padding: 20px;
-        }
-        .flashcard {
-            width: 100%;
-            height: 60vh;
-            max-height: 80%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            perspective: 1000px;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-        .flashcard-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-            transform-style: preserve-3d;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            border-radius: 15px;
-        }
-        .flashcard-inner.flipped {
-            transform: rotateY(180deg);
-        }
-        .flashcard-content {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backface-visibility: hidden;
-            border-radius: 15px;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .flashcard-content.front {
-            background-color: #4caf50;
-            color: white;
-        }
-        .flashcard-content.back {
-            background-color: #ffc107;
-            color: #333;
-            transform: rotateY(180deg);
-        }
-        .controls {
-            margin-top: 10px;
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 1em;
-            border: none;
-            border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            flex: 1;
-            margin: 5px;
-            max-width: 120px;
-        }
-        button:disabled {
-            background-color: #999999;
-            cursor: not-allowed;
-        }
-        button:hover:enabled {
-            background-color: #0056b3;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards</title>
+<style>
+  body, html {
+    margin:0; padding:0; width:100vw; height:100vh; overflow:hidden; background:#fff; color:#000;
+    font-family: sans-serif; transition: background 0.3s, color 0.3s;
+  }
+  body.dark-mode {
+    background:#000; color:#fff;
+  }
+  #loading-overlay {
+    position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5);
+    display:flex; justify-content:center; align-items:center; z-index:99999;
+    font-size:2rem; color:#fff;
+  }
 
-        /* Media Queries para Responsividad */
-        @media (max-width: 768px) {
-            .flashcard {
-                height: 50vh;
-                max-height: 70%;
-            }
-            .flashcard-content {
-                padding: 15px;
-            }
-            button {
-                padding: 8px 15px;
-                font-size: 0.9em;
-            }
-        }
+  .spinner {
+    width:50px; height:50px; border:8px solid #f3f3f3; border-top:8px solid #4a90e2; border-radius:50%;
+    animation:spin 1s linear infinite;
+  }
 
-        @media (max-width: 480px) {
-            .flashcard {
-                height: 40vh;
-                max-height: 60%;
-            }
-            .flashcard-content {
-                padding: 10px;
-            }
-            button {
-                padding: 6px 10px;
-                font-size: 0.8em;
-            }
-        }
-    </style>
+  @keyframes spin {
+    0% {transform:rotate(0deg);}
+    100% {transform:rotate(360deg);}
+  }
+
+  #setup-screen, #flashcard-screen {
+    width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+
+  #flashcard-screen { display:none; }
+
+  #setup-screen {
+    background:#f4f4f4; padding:2rem; box-sizing:border-box;
+  }
+
+  #setup-screen h1 {
+    margin-bottom:1rem;
+  }
+
+  #flashcard-container {
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative; padding:2rem;
+    box-sizing:border-box;
+  }
+
+  .icon-bar {
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    display:flex; gap:1rem;
+  }
+
+  .icon-bar button {
+    background:none; border:none; color:inherit; font-size:1.5rem; cursor:pointer;
+  }
+
+  .difficulty-bar {
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    display:flex; gap:1rem;
+  }
+
+  .difficulty-bar button {
+    background:none; border:none; font-size:1rem; padding:0.5rem 1rem; border-radius:5px;
+    cursor:pointer; background:#ddd; color:#333;
+  }
+
+  .difficulty-bar button:hover {
+    background:#ccc;
+  }
+
+  .flashcard-text {
+    text-align:center;
+    max-width:90%;
+    white-space:pre-wrap;
+  }
+
+  select, button {
+    margin:0.5rem 0;
+    font-size:1rem;
+  }
+</style>
 </head>
 <body>
 
-<div class="container" id="flashcardContainer">
-    <h1>Flashcards Interactivas</h1>
-    <input type="file" id="fileInput" accept=".csv" />
-    <button id="startButton" onclick="startFlashcards()" disabled>Iniciar Flashcards</button>
-    <div id="flashcard" class="flashcard" style="display:none;">
-        <div class="flashcard-inner">
-            <div class="flashcard-content front"></div>
-            <div class="flashcard-content back"></div>
-        </div>
-    </div>
-    <div class="controls" style="display:none;">
-        <button onclick="prevFlashcard()">Anterior</button>
-        <button onclick="nextFlashcard()">Siguiente</button>
-    </div>
+<div id="loading-overlay">
+  <div class="spinner"></div>
+</div>
+
+<div id="setup-screen">
+  <h1>Seleccionar Asignatura y Tema</h1>
+  <select id="asignatura-select"></select>
+  <select id="tema-select"><option value="">Todos los temas</option></select>
+  <button id="iniciar-btn">Iniciar</button>
+</div>
+
+<div id="flashcard-screen">
+  <div class="icon-bar">
+    <button id="mode-toggle">🌓</button>
+    <button id="fullscreen-toggle">⛶</button>
+  </div>
+  <div id="flashcard-container">
+    <div class="flashcard-text" id="flashcard-text"></div>
+  </div>
+  <div class="difficulty-bar">
+    <button data-dif="Fácil">Fácil</button>
+    <button data-dif="Medio">Medio</button>
+    <button data-dif="Difícil">Difícil</button>
+  </div>
 </div>
 
 <script>
-    let flashcards = [];
-    let currentFlashcardIndex = 0;
+const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyRAzWKRg_YmJk0Y72ao7Ww8XOxaC6hhllMrjEPk0TIAiFcZ-MOGElGqvTKpsj9_NqQ/exec"; // Reemplazar con la URL del Web App
 
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                parseCSV(text);
-                if (flashcards.length > 0) {
-                    document.getElementById('startButton').disabled = false; // Habilitar botón de inicio
-                } else {
-                    alert("No se encontraron flashcards en el archivo. Asegúrate de que el archivo CSV tenga el formato correcto.");
-                }
-            };
-            reader.readAsText(file);
-        }
-    });
+let flashcards = [];
+let currentIndex = 0;
+let currentSide = 'front';
+let isDarkMode = false;
+let asignatura = '';
+let tema = '';
 
-    function parseCSV(text) {
-        const rows = text.split(/\r?\n/);
-        flashcards = rows.slice(1).map(row => {
-            const columns = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            if (columns && columns.length >= 2) {
-                const question = columns[0].replace(/"/g, '').trim();
-                const answer = columns.slice(1).join(',').replace(/"/g, '').trim();
-                return { question, answer };
-            }
-        }).filter(flashcard => flashcard && flashcard.question && flashcard.answer);
+let startX = 0; let startY = 0;
+
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  // Mostramos spinner de carga
+  document.getElementById('loading-overlay').style.display = 'flex';
+  
+  await loadProgresoDesdeSheet(); // Cargar progreso primero
+  await loadAsignaturas();       // Cargar asignaturas
+  
+  document.getElementById('asignatura-select').addEventListener('change', onAsignaturaChange);
+  document.getElementById('iniciar-btn').addEventListener('click', iniciar);
+  document.getElementById('mode-toggle').addEventListener('click', toggleMode);
+  document.getElementById('fullscreen-toggle').addEventListener('click', toggleFullScreen);
+  document.querySelectorAll('.difficulty-bar button').forEach(btn => {
+    btn.addEventListener('click', setDifficulty);
+  });
+
+  const flashcardContainer = document.getElementById('flashcard-container');
+  flashcardContainer.addEventListener('touchstart', onTouchStart, {passive:true});
+  flashcardContainer.addEventListener('touchend', onTouchEnd, {passive:true});
+  flashcardContainer.addEventListener('mousedown', onMouseDown);
+  flashcardContainer.addEventListener('mouseup', onMouseUp);
+
+  const savedDarkMode = localStorage.getItem('darkMode');
+  if (savedDarkMode === 'true') {
+    document.body.classList.add('dark-mode');
+    isDarkMode = true;
+  }
+
+  // Ocultamos spinner
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+async function loadProgresoDesdeSheet() {
+  const res = await fetch(ENDPOINT_URL + "?action=progreso");
+  const progress = await res.json();
+  if (progress.asignatura) {
+    asignatura = progress.asignatura;
+    tema = progress.tema;
+    currentIndex = parseInt(progress.index) || 0;
+    currentSide = progress.side || 'front';
+  }
+}
+
+async function loadAsignaturas() {
+  const res = await fetch(ENDPOINT_URL);
+  const data = await res.json();
+  const asignaturas = [...new Set(data.map(fc => fc.Asignatura))];
+  const asignaturaSelect = document.getElementById('asignatura-select');
+  asignaturaSelect.innerHTML = '<option value="">Seleccione Asignatura</option>' 
+    + asignaturas.map(a => `<option value="${a}">${a}</option>`).join('');
+
+  // Si el progreso tiene una asignatura guardada, seleccionarla y cargar temas
+  if (asignatura) {
+    asignaturaSelect.value = asignatura;
+    await loadTemas(asignatura);
+  }
+}
+
+function onAsignaturaChange() {
+  asignatura = document.getElementById('asignatura-select').value;
+  loadTemas(asignatura);
+}
+
+async function loadTemas(asig) {
+  const res = await fetch(ENDPOINT_URL);
+  const data = await res.json();
+  const temas = [...new Set(data.filter(fc => fc.Asignatura === asig).map(fc => fc.Tema))];
+  const temaSelect = document.getElementById('tema-select');
+  temaSelect.innerHTML = '<option value="">Todos los temas</option>'
+    + temas.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  if (tema && temas.includes(tema)) {
+    temaSelect.value = tema;
+  }
+}
+
+async function iniciar() {
+  asignatura = document.getElementById('asignatura-select').value;
+  tema = document.getElementById('tema-select').value;
+  if (!asignatura) {
+    alert("Seleccione una asignatura");
+    return;
+  }
+  await loadFlashcards(asignatura, tema);
+}
+
+async function loadFlashcards(asig, t, restoreFromProgress=false) {
+  const res = await fetch(ENDPOINT_URL + "?asignatura="+encodeURIComponent(asig)+"&tema="+encodeURIComponent(t));
+  const data = await res.json();
+  flashcards = data;
+  
+  if (flashcards.length === 0) {
+    alert("No se encontraron flashcards para esa asignatura/tema.");
+    return;
+  }
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('flashcard-screen').style.display = 'flex';
+
+  if (!restoreFromProgress) {
+    currentIndex = 0;
+    currentSide = 'front';
+    await saveProgressToSheet();
+  }
+
+  showCurrentFlashcard();
+}
+
+function showCurrentFlashcard() {
+  if (currentIndex < 0) currentIndex = 0;
+  if (currentIndex >= flashcards.length) currentIndex = flashcards.length - 1;
+
+  const fc = flashcards[currentIndex];
+  let text = (currentSide === 'front') ? fc.Pregunta : fc.Respuesta;
+
+  const flashcardText = document.getElementById('flashcard-text');
+  flashcardText.innerText = text;
+
+  adjustFontSize();
+  saveProgressToSheet();
+}
+
+function adjustFontSize() {
+  const flashcardText = document.getElementById('flashcard-text');
+  let text = flashcardText.innerText;
+  let length = text.length;
+  let fontSize = Math.max(2, 10 - (length/50)) + 'vw';
+  flashcardText.style.fontSize = fontSize;
+}
+
+function toggleMode() {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('dark-mode', isDarkMode);
+  localStorage.setItem('darkMode', isDarkMode);
+}
+
+function toggleFullScreen() {
+  if(!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+async function setDifficulty(e) {
+  const dif = e.target.getAttribute('data-dif');
+  const fc = flashcards[currentIndex];
+
+  const formData = new URLSearchParams();
+  formData.append('action', 'dificultad');
+  formData.append('Asignatura', fc.Asignatura);
+  formData.append('Tema', fc.Tema);
+  formData.append('Pregunta', fc.Pregunta);
+  formData.append('Dificultad', dif);
+
+  const res = await fetch(ENDPOINT_URL, { method:'POST', body:formData });
+  const result = await res.json();
+  if (result.success) {
+    alert(`Dificultad "${dif}" guardada para esta flashcard.`);
+  } else {
+    alert(`Error al guardar dificultad: ${result.error || 'Desconocido'}`);
+  }
+}
+
+function onTouchStart(e) {
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+}
+
+function onTouchEnd(e) {
+  let endX = e.changedTouches[0].clientX;
+  let endY = e.changedTouches[0].clientY;
+  handleGesture(endX - startX, endY - startY);
+}
+
+function onMouseDown(e) {
+  startX = e.clientX;
+  startY = e.clientY;
+}
+
+function onMouseUp(e) {
+  let endX = e.clientX;
+  let endY = e.clientY;
+  handleGesture(endX - startX, endY - startY);
+}
+
+function handleGesture(deltaX, deltaY) {
+  let absX = Math.abs(deltaX);
+  let absY = Math.abs(deltaY);
+
+  if (absX > absY) {
+    // Horizontal -> cambio de cara
+    toggleSide();
+  } else {
+    // Vertical -> cambiar flashcard
+    if (deltaY > 0) {
+      nextFlashcard();
+    } else {
+      prevFlashcard();
     }
+  }
+}
 
-    function startFlashcards() {
-        const container = document.getElementById('flashcardContainer');
-        if (container.requestFullscreen) {
-            container.requestFullscreen();
-        } else if (container.mozRequestFullScreen) { // Firefox
-            container.mozRequestFullScreen();
-        } else if (container.webkitRequestFullscreen) { // Chrome, Safari and Opera
-            container.webkitRequestFullscreen();
-        } else if (container.msRequestFullscreen) { // IE/Edge
-            container.msRequestFullscreen();
-        }
+function toggleSide() {
+  currentSide = (currentSide === 'front') ? 'back' : 'front';
+  showCurrentFlashcard();
+}
 
-        document.getElementById('startButton').style.display = 'none'; // Ocultar botón de inicio
-        showFlashcard();
-    }
+function nextFlashcard() {
+  if (currentIndex < flashcards.length - 1) {
+    currentIndex++;
+    currentSide = 'front';
+    showCurrentFlashcard();
+  } else {
+    alert("Has llegado al final de las flashcards.");
+  }
+}
 
-    function showFlashcard() {
-        if (flashcards.length === 0) return;
-        const flashcardInner = document.querySelector('.flashcard-inner');
-        const frontContent = flashcardInner.querySelector('.front');
-        const backContent = flashcardInner.querySelector('.back');
-        const controlsElement = document.querySelector('.controls');
-        
-        flashcardInner.classList.remove('flipped'); // Reiniciar la posición
-        frontContent.textContent = flashcards[currentFlashcardIndex].question;
-        backContent.textContent = flashcards[currentFlashcardIndex].answer;
+function prevFlashcard() {
+  if (currentIndex > 0) {
+    currentIndex--;
+    currentSide = 'front';
+    showCurrentFlashcard();
+  } else {
+    alert("Ya estás en la primera flashcard.");
+  }
+}
 
-        document.getElementById('flashcard').style.display = 'flex';
-        controlsElement.style.display = 'flex';
+async function saveProgressToSheet() {
+  const formData = new URLSearchParams();
+  formData.append('action', 'progreso');
+  formData.append('asignatura', asignatura);
+  formData.append('tema', tema);
+  formData.append('index', currentIndex);
+  formData.append('side', currentSide);
 
-        flashcardInner.onclick = function() {
-            flashcardInner.classList.toggle('flipped');
-        };
-    }
-
-    function prevFlashcard() {
-        if (currentFlashcardIndex > 0) {
-            currentFlashcardIndex--;
-            showFlashcard();
-        }
-    }
-
-    function nextFlashcard() {
-        if (currentFlashcardIndex < flashcards.length - 1) {
-            currentFlashcardIndex++;
-            showFlashcard();
-        }
-    }
+  await fetch(ENDPOINT_URL, { method:'POST', body:formData });
+}
 </script>
-
 </body>
 </html>
