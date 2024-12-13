@@ -12,17 +12,18 @@
   body.dark-mode {
     background:#000; color:#fff;
   }
+
   #loading-overlay {
     position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5);
     display:flex; justify-content:center; align-items:center; z-index:99999;
     font-size:2rem; color:#fff;
   }
+  #loading-overlay.hidden { display:none; }
 
   .spinner {
     width:50px; height:50px; border:8px solid #f3f3f3; border-top:8px solid #4a90e2; border-radius:50%;
     animation:spin 1s linear infinite;
   }
-
   @keyframes spin {
     0% {transform:rotate(0deg);}
     100% {transform:rotate(360deg);}
@@ -111,7 +112,7 @@
 </div>
 
 <script>
-const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyRAzWKRg_YmJk0Y72ao7Ww8XOxaC6hhllMrjEPk0TIAiFcZ-MOGElGqvTKpsj9_NqQ/exec"; // Reemplazar con la URL del Web App
+const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbziHpJDwKea_nEdi74aCD4rRsQ34lBlQUcimJlrI45VpWqvOaFpLtkIAfJIGZ2H89Gf/exec"; // Reemplazar con la URL del Web App
 
 let flashcards = [];
 let currentIndex = 0;
@@ -121,16 +122,16 @@ let asignatura = '';
 let tema = '';
 
 let startX = 0; let startY = 0;
+const GESTURE_THRESHOLD = 50; // px mínimo para considerar el gesto
 
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  // Mostramos spinner de carga
-  document.getElementById('loading-overlay').style.display = 'flex';
-  
-  await loadProgresoDesdeSheet(); // Cargar progreso primero
-  await loadAsignaturas();       // Cargar asignaturas
-  
+  showSpinner();
+  await loadProgresoDesdeSheet(); 
+  await loadAsignaturas(); 
+  hideSpinner();
+
   document.getElementById('asignatura-select').addEventListener('change', onAsignaturaChange);
   document.getElementById('iniciar-btn').addEventListener('click', iniciar);
   document.getElementById('mode-toggle').addEventListener('click', toggleMode);
@@ -151,8 +152,22 @@ async function init() {
     isDarkMode = true;
   }
 
-  // Ocultamos spinner
-  document.getElementById('loading-overlay').style.display = 'none';
+  // Si el progreso tenía asignatura y tema, cargarlos
+  if (asignatura) {
+    showSpinner();
+    await loadTemas(asignatura);
+    hideSpinner();
+    const temaSelect = document.getElementById('tema-select');
+    if (tema) temaSelect.value = tema;
+    if (flashcards.length > 0) {
+      // Ya se cargaron las flashcards en loadProgresoDesdeSheet?
+      // No, loadProgreso solo cargo valores, no flashcards
+      // Si ya tenemos asignatura/tema del progreso, cargar flashcards:
+      showSpinner();
+      await loadFlashcards(asignatura, tema, true);
+      hideSpinner();
+    }
+  }
 }
 
 async function loadProgresoDesdeSheet() {
@@ -173,17 +188,14 @@ async function loadAsignaturas() {
   const asignaturaSelect = document.getElementById('asignatura-select');
   asignaturaSelect.innerHTML = '<option value="">Seleccione Asignatura</option>' 
     + asignaturas.map(a => `<option value="${a}">${a}</option>`).join('');
-
-  // Si el progreso tiene una asignatura guardada, seleccionarla y cargar temas
-  if (asignatura) {
-    asignaturaSelect.value = asignatura;
-    await loadTemas(asignatura);
-  }
 }
 
 function onAsignaturaChange() {
   asignatura = document.getElementById('asignatura-select').value;
-  loadTemas(asignatura);
+  if (asignatura) {
+    showSpinner();
+    loadTemas(asignatura).then(hideSpinner);
+  }
 }
 
 async function loadTemas(asig) {
@@ -193,10 +205,6 @@ async function loadTemas(asig) {
   const temaSelect = document.getElementById('tema-select');
   temaSelect.innerHTML = '<option value="">Todos los temas</option>'
     + temas.map(t => `<option value="${t}">${t}</option>`).join('');
-
-  if (tema && temas.includes(tema)) {
-    temaSelect.value = tema;
-  }
 }
 
 async function iniciar() {
@@ -206,7 +214,9 @@ async function iniciar() {
     alert("Seleccione una asignatura");
     return;
   }
+  showSpinner();
   await loadFlashcards(asignatura, tema);
+  hideSpinner();
 }
 
 async function loadFlashcards(asig, t, restoreFromProgress=false) {
@@ -278,7 +288,9 @@ async function setDifficulty(e) {
   formData.append('Pregunta', fc.Pregunta);
   formData.append('Dificultad', dif);
 
+  showSpinner();
   const res = await fetch(ENDPOINT_URL, { method:'POST', body:formData });
+  hideSpinner();
   const result = await res.json();
   if (result.success) {
     alert(`Dificultad "${dif}" guardada para esta flashcard.`);
@@ -313,14 +325,20 @@ function handleGesture(deltaX, deltaY) {
   let absX = Math.abs(deltaX);
   let absY = Math.abs(deltaY);
 
+  if (absX < GESTURE_THRESHOLD && absY < GESTURE_THRESHOLD) {
+    return; // Gesto muy pequeño, ignorar
+  }
+
   if (absX > absY) {
     // Horizontal -> cambio de cara
     toggleSide();
   } else {
     // Vertical -> cambiar flashcard
     if (deltaY > 0) {
+      // hacia abajo next
       nextFlashcard();
     } else {
+      // hacia arriba prev
       prevFlashcard();
     }
   }
@@ -360,6 +378,14 @@ async function saveProgressToSheet() {
   formData.append('side', currentSide);
 
   await fetch(ENDPOINT_URL, { method:'POST', body:formData });
+}
+
+function showSpinner() {
+  document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+function hideSpinner() {
+  document.getElementById('loading-overlay').style.display = 'none';
 }
 </script>
 </body>
